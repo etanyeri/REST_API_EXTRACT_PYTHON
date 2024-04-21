@@ -1,0 +1,13 @@
+WITH CTE_INVOICE AS (
+SELECT
+    TRANSACTION_ID
+    , INVOICE_NUMBER
+    , INVOICE_DATE
+    , APPLIED_DATE_POSTED AS PAYMENTDATE
+    , CREATED_DATE
+    , MODIFIED_DATE
+FROM {{ source ("sourcesystem", "sourcetable") }} AS T1
+INNER JOIN {{ source ("sourcesystem", "sourcetable2") }} AS T2
+    ON T1.TRANSACTION_ID = T2.TRANSACTION_ID)
+SELECT * FROM CTE_INVOICE;
+ 
