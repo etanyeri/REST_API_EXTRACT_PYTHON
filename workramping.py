@@ -34,3 +34,24 @@ class WorkrampingManager(utils.SnowflakeConnector):
         self.dirname = dirname
         self.error_list = []
         self.bearer = utils.retrieve_workramping_bearer_token()
+
+def query_workramping(self, query, output_path=None):
+        if not query:
+            return
+        tok = utils.retrieve_workramping_bearer_token()
+        out = utils.call_and_configure_workramping(tok, "xdbc", query=query)
+        if output_path:
+            out.to_csv(output_path, index=False)
+        print(out)
+        return out
+
+    def pull_from_workramping(
+        self,
+        export_name: str,
+        verbose: bool = True,
+    ) -> None:
+        tik = time()
+        sql_filepath = None
+        now_dt = datetime.now()
+        now = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+        # ...
