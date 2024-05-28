@@ -168,10 +168,102 @@ def query_jira(self, query, output_path=None):
             
                  if patience == 3:
                      self.error_list.append(
-                    f"Successful API call, but mismatching records counts between the query in Jira and staging table. No change in record count in stage for the past"
+                        f"Successful API call, but mismatching records counts between the query in Jira and staging table. No change in record count in stage for the past"
                 )
                 return
-            elif stage_count > jira_count:
+                elif stage_count > jira_count:
+                    self.error_list.append(
+                        f"Successful API call, but there are more records in stage than what are returned by the Jira query. Stage: {stage_count}; Jira: {jira_count}"
+                )
+                return
+                current_stage_count = get_stage_count()[0]
+                if current_stage_count > stage_count:
+                    logging.info(
+                    f"{current_stage_count - stage_count} records have been added since the last query. PriorStage: {stage_count}, CurrentStage: {current_stage_count}, Jira: {Jira_count}")
+                )
+                stage_count = current_stage_count
+                    patience = 0
+                else:
+                logging.info(
+                    f"No change between iterations. PriorStage: {stage_count}, CurrentStage: {current_stage_count}, Xactly: {xactly_count}"
+                )
+                    patience += 1
+               sleep(theta)
+
+             # Step 3: Perform Upsert
+            self.upsert_table_into_snowflake(
+                source_table=stage_table,
+                database=os.environ["SNOWFLAKE_ING_DATABASE"],
+                schema=table_schema,
+                target_table=table_name,
+                id_columns=primary_keys,
+            )
+     # Step 4: Update Records in Raw table to be Deleted if the pk doesn't exist within the staging table (and is less than 1 year old)
+        pk = (
+            f"CONCAT({', '.join(primary_keys)})"
+            if len(primary_keys) > 1 
+            else primary_keys[0]
+        )
+        deleted_records = self.execute_snowflake_query(
+            f""" UPDATE {os.environ["SNOWFLAKE_INGEST_DATABASE"]}.{table_schema}.{table_name}
+            SET IS_DELETED = TRUE
+            WHERE {pk} NOT IN (
+                SELECT {pk} FROM {os.environ["SNOWFLAKE_ING_DATABASE"]}.{table_schema}.{stage_table}
+            )  AND TO_DATE({incremental_field}) > '{look_back}';"""
+        )
+        for cursor in deleted_records:
+            for row in cursor:
+                logging.warn(f"{row[0]} were set as having been DELETED")
+        
+        # Step 4B: Update Records in Row table to not be deleted if the pk exists within the staging table
+        recovered_records = self.execute_snowflake_query(
+            f"""UPDATE {os.environ["SNOWFLAKE_INGEST_DATABASE"]}.{table_schema}.{table_name}
+            SET IS_DELETED = FALSE
+            WHERE {pk} IN (
+                SELECT {pk} FROM {os.environ["SNOWFLAKE_INGEST_DATABASE"]}.{table_schema}.{stage_table}
+            );"""
+        )
+        for cursor in recovered_records:
+             for row in cursor:
+                logging.warn(f"{row[0]} records were UNDELETED")
+
+        # Step 5: Truncate Staging table again
+        self.execute_snowflake_query(
+            f"TRUNCATE TABLE {os.environ['SNOWFLAKE_ING_DATABASE']}.{table_schema}.{stage_table};",
+            verbose=True,
+        )
+        self.con.commit()
+        tok = time()
+        logging.info(f"Operation complete after {(tok - tik)} seconds")
+        
+        except Exception as e:
+            self.con.rollback()
+            self.error_list.append(
+                f"The following error occurred when pulling data: {e}"
+            )
+            
+        self.con.autocommit(True)
+        
+def _query_jira_and_insert_to_staging(self, query, stage_table, verbose):
+        insertion_statement = f"""
+        INSERT INTO snowflake(
+            TableName = '{stage_table}',
+            CredentialName = '{self.credentials}'
+            Passthrough = True
+        )
+        {query}
+        """
+
+        
+            if verbose:
+                logging.info(resp)
+        except Timeout as e:
+            logging.warn(
+                "Snowflake connector query timed out: {e}. Continuing script until targeted stage table is no longer updated and does not match the number of records returned by xactly query."
+            )
+        # ...
+        
+
       
 
            
