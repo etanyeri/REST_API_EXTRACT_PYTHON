@@ -57,22 +57,22 @@ def query_jira(self, query, output_path=None):
         now = now_dt.strftime("%Y-%m-%d %H:%M:%S")
     
         try:
-            sql_filepath = self.jira_config[export_name]["SOURCE_INFORMATION"]
-            ["INPUT_FILENAME"]
-            
-            table_schema = self.jira_config[export_name]["TARGET_INFORMATION"].get("TABLE_SCHEMA")
-                , os.environ[SNOWFLAKE_JIRA_SCHEMA]
-            
-            table_name = self.jira_config[export_name]["TARGET_INFORMATION"]["TABLE_NAME"].upper()
-
-            
+            sql_filepath = self.jira_config[export_name]["SOURCE_INFORMATION"][
+                "INPUT_FILENAME"
+            ]
+            table_schema = self.jira_config[export_name]["TARGET_INFORMATION"].get(
+                "TABLE_SCHEMA", os.environ[SNOWFLAKE_JIRA_SCHEMA]
+            )
+            table_name = self.jira_config[export_name]["TARGET_INFORMATION"][
+                "TABLE_NAME"
+            ].upper()
             stage_table = f"STAGE_{table_name}"
-            primary_keys = self.jira_config[export_name]["SOURCE_INFORMATION"]
-                ["PRIMARY_KEYS"]
-
-            incremental_field = self.jira_config[export_name]["SOURCE_INFORMATION"]
-                ["INCREMENTAL_FIELD"]
-            
+            primary_keys = self.jira_config[export_name]["SOURCE_INFORMATION"][
+            "PRIMARY_KEYS"
+            ]
+            incremental_field = self.jira_config[export_name]["SOURCE_INFORMATION"][
+            "INCREMENTAL_FIELD"
+            ]
         except KeyError as e:
             self.error_list.append(
                 f"Expected the following key within the {export_name} section of the configuration file: {e}"
@@ -254,14 +254,21 @@ def _query_jira_and_insert_to_staging(self, query, stage_table, verbose):
         {query}
         """
 
-        
+        logging.info(query)
+
+        try:
+            resps = utils.call_jira_connect(
+                access_token = self.bearer, action = 'dbc', query =insertion_statement
+            )
             if verbose:
                 logging.info(resp)
         except Timeout as e:
             logging.warn(
-                "Snowflake connector query timed out: {e}. Continuing script until targeted stage table is no longer updated and does not match the number of records returned by xactly query."
+                "Snowflake connector query timed out: {e}. Continuing script until targeted stage table is no longer updated and does not match the number of records returned by jira query."
             )
-        # ...
+
+def has_errors(self):
+    return len(self.error_list) > 0
         
 
       
