@@ -20,5 +20,5 @@ if os.environ.get("CI"):
   S3_BUCKET_ROOT = "TEST_S3_BUCKET"
   S3_BRANCH_ALIAS = "MR"
   AIRFLOW__WEBSERVER__BASE_URL = "URL"
-else:
+else:  
   
