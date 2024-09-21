@@ -41,8 +41,8 @@ os.environ["JIRA_SNOWFLAKE_ROLE"] = Variable.get("JIRA_SNOWFLAKE_ROLE", default_
 os.environ["JIRA_SNOWFLAKE_WAREHOUSE"] = Variable.get("JIRA_SNOWFLAKE_WAREHOUSE", default_var=None)
 os.environ["JIRA_SNOWFLAKE_DATABASE"] = Variable.get("JIRA_SNOWFLAKE_DATABASE", default_var=None)
 
-# Function to pull data from Xactly
-def pull_xactly_data(**kwargs):
+# Function to pull data from Jira
+def pull_jira_data(**kwargs):
     # Function logic here
     pass
 
@@ -68,14 +68,14 @@ dag = DAG(
 
 # Task for pulling Jira data
 task_pull = PythonOperator(
-    task_id='pull_xactly_data',
-    python_callable=pull_xactly_data,
+    task_id='pull_jira_data',
+    python_callable=pull_jira_data,
     dag=dag,
 )
 
 # Task for ingesting data into S3
 task_ingest = PythonOperator(
-    task_id='ingest_xactly_data',
+    task_id='ingest_jira_data',
     python_callable=ingest_data_to_s3,
     dag=dag,
 )
